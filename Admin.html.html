@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Report — HAD Safety App</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --green: #06C755;
+      --green-dark: #04a344;
+      --blue: #2563eb;
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans Thai', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── LOGIN ─── */
+    #login-page {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.06);
+      text-align: center;
+    }
+    .login-logo { font-size: 48px; margin-bottom: 16px; }
+    .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .login-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: 'Noto Sans Thai', sans-serif;
+      margin-bottom: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .input-field:focus { border-color: var(--green); }
+    .login-btn {
+      width: 100%;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Noto Sans Thai', sans-serif;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .login-btn:hover { background: var(--green-dark); }
+    .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 20px; }
+
+    /* ─── DASHBOARD ─── */
+    #dashboard-page { display: none; }
+
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .navbar-brand { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .navbar-brand span { font-size: 24px; }
+    .logout-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: 13px; cursor: pointer; color: var(--text-muted);
+      font-family: 'Noto Sans Thai', sans-serif;
+      transition: all .2s;
+    }
+    .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+    /* ─── KPI STATS ─── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .stat-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+    .stat-value { font-size: 32px; font-weight: 700; color: var(--green); font-family: 'Space Mono', monospace; }
+    .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── CHARTS ─── */
+    .charts-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .chart-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+    .chart-box { position: relative; height: 240px; width: 100%; }
+
+    /* ─── CONTROLS ─── */
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1; min-width: 220px;
+      padding: 9px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Noto Sans Thai', sans-serif;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--green); }
+    .filter-select {
+      padding: 9px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Noto Sans Thai', sans-serif;
+      outline: none; cursor: pointer;
+    }
+    .action-btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Noto Sans Thai', sans-serif;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+    }
+    .action-btn.primary { background: var(--green); color: #fff; }
+    .action-btn.primary:hover { background: var(--green-dark); }
+    .action-btn.secondary { background: #f3f4f6; color: var(--text); }
+    .action-btn.secondary:hover { background: #e5e7eb; }
+
+    /* ─── TABLE ─── */
+    .table-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 750px; }
+    thead { background: #f9fafb; }
+    th {
+      padding: 13px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 13px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+
+    .badge-nurse {
+      display: inline-block;
+      background: #ecfdf5;
+      color: #047857;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .badge-patient {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .badge-rights {
+      display: inline-block;
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+    .mono { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+    .loading-row td, .empty-row td { text-align: center; padding: 48px; color: var(--text-muted); }
+
+    /* ─── PAGINATION ─── */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--text-muted);
+    }
+    .page-btns { display: flex; gap: 6px; }
+    .page-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .page-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+    @media (max-width: 900px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .controls { flex-direction: column; align-items: stretch; }
+      .search-input { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">💊</div>
+    <div class="login-title">HAD Admin Dashboard</div>
+    <div class="login-sub">ระบบติดตามการบริหารยาความเสี่ยงสูง (ER)</div>
+    <input type="password" class="input-field" id="pwd-input" placeholder="กรอกรหัสผ่านผู้ดูแลระบบ" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════ DASHBOARD ═══════════ -->
+<div id="dashboard-page">
+  <nav class="navbar">
+    <div class="navbar-brand"><span>💊</span> HAD Safety — Admin Report</div>
+    <button class="logout-btn" onclick="doLogout()">ออกจากระบบ</button>
+  </nav>
+
+  <div class="container">
+    <!-- KPI Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">การบริหารยาทั้งหมด</div>
+        <div class="stat-value" id="s-total">—</div>
+        <div class="stat-sub">ครั้ง (Administrations)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">บริหารยาวันนี้</div>
+        <div class="stat-value" id="s-today">—</div>
+        <div class="stat-sub">ครั้ง</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ผู้ป่วยที่ได้รับยา</div>
+        <div class="stat-value" id="s-patients" style="color:var(--blue)">—</div>
+        <div class="stat-sub">ราย (De-identified Code)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">พยาบาลผู้ปฏิบัติงาน</div>
+        <div class="stat-value" id="s-nurses">—</div>
+        <div class="stat-sub">คน (Active Nurses)</div>
+      </div>
+    </div>
+
+    <!-- Charts (ตามคู่มือการใช้งาน Section 5) -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">📈 แนวโน้มการบริหารยารายวัน (Daily Trend)</div>
+        <div class="chart-box"><canvas id="dailyChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🏆 อันดับยาความเสี่ยงสูงที่ใช้บ่อย (Top Drugs)</div>
+        <div class="chart-box"><canvas id="drugChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <input type="text" class="search-input" id="search-input" placeholder="🔍 ค้นหา รหัสพยาบาล / รหัสผู้ป่วย / ชื่อยา..." oninput="applyFilter()">
+      <select class="filter-select" id="date-filter" onchange="applyFilter()">
+        <option value="">ทุกช่วงเวลา</option>
+        <option value="today">วันนี้</option>
+        <option value="week">7 วันล่าสุด</option>
+        <option value="month">30 วันล่าสุด</option>
+      </select>
+      <button class="action-btn secondary" onclick="loadData()">🔄 รีเฟรชข้อมูล</button>
+      <button class="action-btn primary" onclick="exportCSV()">⬇ Export CSV (สำหรับ SPSS)</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>รหัสพยาบาล (Nurse ID)</th>
+            <th>รหัสผู้ป่วย (Code ID)</th>
+            <th>รายการยา HAD</th>
+            <th>ตรวจสอบ 5 Rights</th>
+            <th>วัน-เวลาที่บันทึก</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr class="loading-row"><td colspan="6">⏳ กำลังโหลดข้อมูล...</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination" style="display:none">
+        <span id="page-info"></span>
+        <div class="page-btns" id="page-btns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──
+// ✅ แก้ไข URL ให้ตรงกับ LIFF App เรียบร้อยแล้ว
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwUj0VTqcmw7Xokjfrqab9dkviuMRifYhXG0hO898nc4cj68G-K1UDaM6Zt5Mm2NyXh9g/exec";
+
+let adminPassword = "";
+let allData = [];
+let filtered = [];
+const PAGE_SIZE = 20;
+let currentPage = 1;
+let dailyChartInstance = null;
+let drugChartInstance = null;
+
+// ── LOGIN ──
+async function doLogin() {
+  const pwd = document.getElementById("pwd-input").value.trim();
+  if (!pwd) return;
+  const errEl = document.getElementById("login-error");
+  errEl.textContent = "กำลังตรวจสอบ...";
+
+  try {
+    const res = await fetch(`${WEBAPP_URL}?action=login&password=${encodeURIComponent(pwd)}`);
+    const json = await res.json();
+    if (json.status === "ok") {
+      adminPassword = pwd;
+      errEl.textContent = "";
+      document.getElementById("login-page").style.display = "none";
+      document.getElementById("dashboard-page").style.display = "block";
+      loadData();
+    } else {
+      errEl.textContent = json.message || "❌ รหัสผ่านไม่ถูกต้อง";
+    }
+  } catch (e) {
+    errEl.textContent = "❌ เชื่อมต่อ Google Apps Script ไม่ได้ (ตรวจสอบการ Deploy)";
+  }
+}
+
+function doLogout() {
+  adminPassword = "";
+  allData = [];
+  document.getElementById("dashboard-page").style.display = "none";
+  document.getElementById("login-page").style.display = "flex";
+  document.getElementById("pwd-input").value = "";
+}
+
+// ── LOAD DATA ──
+async function loadData() {
+  document.getElementById("table-body").innerHTML =
+    `<tr class="loading-row"><td colspan="6">⏳ กำลังดึงข้อมูลจากฐานข้อมูล...</td></tr>`;
+
+  try {
+    const res = await fetch(`${WEBAPP_URL}?action=report&password=${encodeURIComponent(adminPassword)}`);
+    const json = await res.json();
+    if (json.status === "ok") {
+      allData = (json.data || []).reverse(); // เรียงรายการล่าสุดขึ้นก่อน
+      updateStats();
+      renderCharts();
+      applyFilter();
+    } else {
+      showTableError(json.message || "ไม่สามารถดึงข้อมูลได้");
+    }
+  } catch (e) {
+    showTableError("❌ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบโค้ดฝั่ง Apps Script");
+  }
+}
+
+function showTableError(msg) {
+  document.getElementById("table-body").innerHTML =
+    `<tr class="empty-row"><td colspan="6">${msg}</td></tr>`;
+}
+
+// ── STATS ──
+function updateStats() {
+  const today = new Date().toDateString();
+  const todayRows = allData.filter(r => r["Timestamp"] && new Date(r["Timestamp"]).toDateString() === today);
+  const uniquePatients = new Set(allData.map(r => r["Patient Code ID"]).filter(Boolean)).size;
+  const uniqueNurses = new Set(allData.map(r => r["User ID"]).filter(Boolean)).size;
+
+  document.getElementById("s-total").textContent = allData.length;
+  document.getElementById("s-today").textContent = todayRows.length;
+  document.getElementById("s-patients").textContent = uniquePatients;
+  document.getElementById("s-nurses").textContent = uniqueNurses;
+}
+
+// ── CHARTS (Daily Trend & Top Drugs) ──
+function renderCharts() {
+  // 1. Daily Trend (7 วันล่าสุดที่มีข้อมูล)
+  const dateCounts = {};
+  [...allData].reverse().forEach(r => {
+    if (!r["Timestamp"]) return;
+    const d = new Date(r["Timestamp"]);
+    if (isNaN(d)) return;
+    const label = d.toLocaleDateString("th-TH", { day: "2-digit", month: "short" });
+    dateCounts[label] = (dateCounts[label] || 0) + 1;
+  });
+  const dateLabels = Object.keys(dateCounts).slice(-14);
+  const dateValues = dateLabels.map(l => dateCounts[l]);
+
+  if (dailyChartInstance) dailyChartInstance.destroy();
+  dailyChartInstance = new Chart(document.getElementById("dailyChart"), {
+    type: "bar",
+    data: {
+      labels: dateLabels.length ? dateLabels : ["ไม่มีข้อมูล"],
+      datasets: [{
+        label: "จำนวนครั้งการบริหารยา",
+        data: dateValues.length ? dateValues : [0],
+        backgroundColor: "#06C755",
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  // 2. Top Drugs
+  const drugCounts = {};
+  allData.forEach(r => {
+    const drug = (r["Filename"] || "ไม่ระบุ").replace(/\.(mp3|wav|m4a|ogg)$/i, "");
+    drugCounts[drug] = (drugCounts[drug] || 0) + 1;
+  });
+  const sortedDrugs = Object.entries(drugCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  if (drugChartInstance) drugChartInstance.destroy();
+  drugChartInstance = new Chart(document.getElementById("drugChart"), {
+    type: "doughnut",
+    data: {
+      labels: sortedDrugs.length ? sortedDrugs.map(d => d[0]) : ["ไม่มีข้อมูล"],
+      datasets: [{
+        data: sortedDrugs.length ? sortedDrugs.map(d => d[1]) : [1],
+        backgroundColor: ["#06C755", "#2563eb", "#f59e0b", "#8b5cf6", "#ec4899"]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "right", labels: { boxWidth: 12, font: { family: "Noto Sans Thai" } } } }
+    }
+  });
+}
+
+// ── FILTER ──
+function applyFilter() {
+  const q = document.getElementById("search-input").value.toLowerCase();
+  const df = document.getElementById("date-filter").value;
+  const now = new Date();
+
+  filtered = allData.filter(r => {
+    const ts = new Date(r["Timestamp"]);
+    let dateOk = true;
+    if (df === "today") dateOk = ts.toDateString() === now.toDateString();
+    else if (df === "week")  dateOk = (now - ts) < 7 * 86400000;
+    else if (df === "month") dateOk = (now - ts) < 30 * 86400000;
+
+    const textOk = !q ||
+      (r["Display Name"] || "").toLowerCase().includes(q) ||
+      (r["Patient Code ID"] || "").toLowerCase().includes(q) ||
+      (r["Filename"] || "").toLowerCase().includes(q) ||
+      (r["User ID"] || "").toLowerCase().includes(q);
+
+    return dateOk && textOk;
+  });
+
+  currentPage = 1;
+  renderTable();
+}
+
+// ── TABLE RENDER ──
+function renderTable() {
+  const tbody = document.getElementById("table-body");
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = filtered.slice(start, start + PAGE_SIZE);
+
+  if (page.length === 0) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">ไม่พบข้อมูลการบริหารยา</td></tr>`;
+    document.getElementById("pagination").style.display = "none";
+    return;
+  }
+
+  tbody.innerHTML = page.map((r, i) => {
+    const nurseCode = r["Display Name"] || (r["User ID"] ? "NURSE-" + r["User ID"].slice(-6).toUpperCase() : "—");
+    const patientCode = r["Patient Code ID"] || "—";
+    const file = (r["Filename"] || "—").replace(/\.(mp3|wav|m4a|ogg)$/i, "");
+    const rights = r["5 Rights"] || "Verified";
+    const time = r["Time (TH)"] || r["Timestamp"] || "—";
+
+    return `<tr>
+      <td class="mono">${start + i + 1}</td>
+      <td><span class="badge-nurse">${nurseCode}</span></td>
+      <td><span class="badge-patient">${patientCode}</span></td>
+      <td style="font-weight:600">${file}</td>
+      <td><span class="badge-rights">✓ ${rights}</span></td>
+      <td class="mono" style="white-space:nowrap">${time}</td>
+    </tr>`;
+  }).join("");
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = filtered.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const pag = document.getElementById("pagination");
+  const info = document.getElementById("page-info");
+  const btns = document.getElementById("page-btns");
+
+  if (pages <= 1) { pag.style.display = "none"; return; }
+  pag.style.display = "flex";
+
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end   = Math.min(currentPage * PAGE_SIZE, total);
+  info.textContent = `แสดง ${start}–${end} จาก ${total} รายการ`;
+
+  btns.innerHTML = `
+    <button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>←</button>
+    ${Array.from({length: pages}, (_, i) => i + 1)
+      .filter(p => Math.abs(p - currentPage) <= 2)
+      .map(p => `<button class="page-btn ${p === currentPage ? "active" : ""}" onclick="goPage(${p})">${p}</button>`)
+      .join("")}
+    <button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage === pages ? "disabled" : ""}>→</button>
+  `;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (p < 1 || p > pages) return;
+  currentPage = p;
+  renderTable();
+}
+
+// ── EXPORT CSV ──
+function exportCSV() {
+  if (!filtered.length) return alert("ไม่มีข้อมูลสำหรับส่งออก");
+  const headers = ["No", "Nurse_Code", "LINE_User_ID", "Patient_Code_ID", "HAD_Drug_Filename", "Five_Rights_Status", "Timestamp_ISO", "Time_TH"];
+  const rows = filtered.map((r, i) => [
+    i + 1,
+    `"${r["Display Name"] || ""}"`,
+    `"${r["User ID"] || ""}"`,
+    `"${r["Patient Code ID"] || ""}"`,
+    `"${r["Filename"] || ""}"`,
+    `"${r["5 Rights"] || ""}"`,
+    `"${r["Timestamp"] || ""}"`,
+    `"${r["Time (TH)"] || ""}"`,
+  ].join(","));
+
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `HAD_Research_Report_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>

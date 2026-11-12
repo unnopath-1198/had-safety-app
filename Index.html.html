@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HAD Audio & 5 Rights Scanner</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --green: #06C755;
+      --green-dark: #04a344;
+      --green-light: rgba(6, 199, 85, 0.15);
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --border: #2e2e2e;
+      --text: #f5f5f5;
+      --text-muted: #888;
+      --accent: #06C755;
+      --danger: #ff4757;
+      --warning: #ffa502;
+      --info: #1e90ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Noto Sans Thai', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 40px;
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-icon {
+      width: 40px; height: 40px;
+      background: var(--green);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .header-title { font-size: 17px; font-weight: 700; }
+    .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    .screen { display: none; padding: 20px; animation: fadeUp .25s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* USER CARD */
+    .user-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .user-avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      object-fit: cover;
+      background: var(--surface2);
+    }
+    .user-name { font-size: 15px; font-weight: 600; }
+    .user-id { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; margin-top: 3px; }
+    .user-badge {
+      margin-left: auto;
+      background: var(--green-light);
+      color: var(--green);
+      font-size: 11px; font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(6, 199, 85, 0.3);
+    }
+
+    /* BUTTONS */
+    .scan-btn {
+      width: 100%;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      padding: 18px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Noto Sans Thai', sans-serif;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(6, 199, 85, 0.25);
+    }
+    .scan-btn:active { transform: scale(0.98); background: var(--green-dark); }
+    .scan-btn .icon { font-size: 22px; }
+
+    .patient-scan-btn {
+      width: 100%;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1.5px dashed var(--info);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Noto Sans Thai', sans-serif;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .patient-scan-btn.scanned {
+      background: rgba(30, 144, 255, 0.12);
+      border: 1.5px solid var(--info);
+      color: #70a1ff;
+    }
+    .patient-scan-btn:active { transform: scale(0.98); }
+
+    /* STATS & HISTORY */
+    .stats-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-num { font-size: 28px; font-weight: 700; color: var(--green); font-family: 'Space Mono', monospace; }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 12px; }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .history-item:active { border-color: var(--green); }
+    .history-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .history-name { font-size: 14px; font-weight: 600; }
+    .history-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .history-play { margin-left: auto; font-size: 18px; color: var(--green); }
+
+    /* SCANNER SCREEN */
+    #scanner-screen { padding: 0; }
+    .scanner-header {
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .back-btn {
+      width: 36px; height: 36px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text); font-size: 18px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    #qr-reader { width: 100%; overflow: hidden; }
+    #qr-reader video { width: 100% !important; border-radius: 0; }
+    .scan-hint {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .scan-overlay { position: relative; background: #000; }
+
+    /* ADMINISTRATION WORKFLOW SCREEN */
+    #administer-screen { padding: 0; }
+    .workflow-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .step-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green);
+      background: var(--green-light);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .step-status {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .step-status.done { color: var(--green); font-weight: 600; }
+
+    .drug-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+    .drug-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all; }
+    audio#main-audio { width: 100%; height: 42px; border-radius: 10px; accent-color: var(--green); }
+
+    /* PATIENT INFO BOX */
+    .patient-result {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .patient-result.show { display: flex; }
+    .patient-code { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 700; color: #70a1ff; }
+
+    /* 5 RIGHTS CHECKLIST */
+    .checklist-group { display: flex; flex-direction: column; gap: 10px; }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .15s;
+      user-select: none;
+    }
+    .check-item.checked {
+      border-color: var(--green);
+      background: rgba(6, 199, 85, 0.08);
+    }
+    .check-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+      margin-top: 2px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .check-label-main { font-size: 14px; font-weight: 600; color: var(--text); }
+    .check-label-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* LOG SUMMARY & SUBMIT */
+    .log-info {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .log-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .log-row:last-child { border-bottom: none; }
+    .log-key { color: var(--text-muted); }
+    .log-val { font-weight: 500; font-family: 'Space Mono', monospace; font-size: 12px; text-align: right; }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Noto Sans Thai', sans-serif;
+      cursor: not-allowed;
+      transition: all .2s;
+    }
+    .submit-btn.ready {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(6, 199, 85, 0.3);
+    }
+    .submit-btn.ready:active { transform: scale(0.98); background: var(--green-dark); }
+    .submit-btn.saved {
+      background: var(--green-light);
+      color: var(--green);
+      border-color: var(--green);
+      cursor: default;
+      box-shadow: none;
+    }
+
+    /* TOAST & LOADING */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      z-index: 9999;
+      transition: transform .3s ease;
+      white-space: nowrap;
+      box-shadow: 0 8px 30px rgba(0,0,0,.6);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .loading-screen {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--text-muted); }
+
+    .empty { text-align: center; padding: 32px; color: var(--text-muted); font-size: 14px; }
+    .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-text">กำลังเชื่อมต่อระบบ LINE LIFF...</div>
+</div>
+
+<div class="header" id="main-header" style="display:none">
+  <div class="header-icon">💊</div>
+  <div>
+    <div class="header-title">HAD Safety App</div>
+    <div class="header-sub">ระบบบริหารยาความเสี่ยงสูงตามหลัก 5 Rights</div>
+  </div>
+</div>
+
+<!-- HOME SCREEN -->
+<div class="screen" id="home-screen">
+  <div class="user-card">
+    <img class="user-avatar" id="user-avatar" src="" alt="">
+    <div>
+      <div class="user-name" id="user-name">พยาบาลผู้ปฏิบัติงาน</div>
+      <div class="user-id" id="user-uid">ID: —</div>
+    </div>
+    <div class="user-badge">✓ ยืนยันตัวตนแล้ว</div>
+  </div>
+
+  <button class="scan-btn" onclick="startScanner('drug')">
+    <span class="icon">📷</span> ขั้นตอนที่ 1: สแกน QR ฉลากยา HAD
+  </button>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-today">0</div>
+      <div class="stat-label">บริหารยาวันนี้ (ครั้ง)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-label">สะสมทั้งหมด (ครั้ง)</div>
+    </div>
+  </div>
+
+  <div class="section-title">ประวัติการบริหารยาล่าสุด</div>
+  <div class="history-list" id="history-list">
+    <div class="empty"><div class="empty-icon">📋</div>ยังไม่มีประวัติการบริหารยา</div>
+  </div>
+</div>
+
+<!-- SCANNER SCREEN (รองรับทั้งโหมดสแกนยา และ สแกนผู้ป่วย) -->
+<div class="screen" id="scanner-screen">
+  <div class="scanner-header">
+    <button class="back-btn" onclick="cancelScanner()">←</button>
+    <div>
+      <div style="font-weight:700" id="scanner-title">สแกน QR Code</div>
+      <div style="font-size:12px;color:var(--text-muted)" id="scanner-subtitle">เล็งกล้องไปที่รหัส QR</div>
+    </div>
+  </div>
+  <div class="scan-overlay">
+    <div id="qr-reader"></div>
+  </div>
+  <div class="scan-hint" id="scanner-hint">📱 กรุณาอนุญาตการเข้าถึงกล้องและวาง QR Code ให้อยู่ในกรอบ</div>
+</div>
+
+<!-- ADMINISTRATION WORKFLOW SCREEN (ขั้นตอนที่ 2 - 5) -->
+<div class="screen" id="administer-screen">
+  <div class="scanner-header">
+    <button class="back-btn" onclick="showHome()">←</button>
+    <div>
+      <div style="font-weight:700">ตรวจสอบและบริหารยา HAD</div>
+      <div style="font-size:12px;color:var(--text-muted)">ดำเนินการให้ครบทั้ง 5 ขั้นตอนก่อนบันทึก</div>
+    </div>
+  </div>
+
+  <div class="workflow-body">
+    <!-- ขั้นตอนที่ 1 & 2: ข้อมูลยาและเสียงแนะนำ -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-badge">ขั้นตอนที่ 1-2: ตรวจสอบยาและฟังเสียง</span>
+        <span class="step-status done">✓ สแกนยาแล้ว</span>
+      </div>
+      <div class="drug-title" id="drug-title">ไม่ทราบชื่อยา</div>
+      <div class="drug-sub" id="drug-url">—</div>
+      <audio id="main-audio" controls preload="auto"></audio>
+    </div>
+
+    <!-- ขั้นตอนที่ 3: สแกนข้อมือผู้ป่วย -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-badge">ขั้นตอนที่ 3: ยืนยันตัวตนผู้ป่วย</span>
+        <span class="step-status" id="patient-step-status">รอการสแกน</span>
+      </div>
+      <button class="patient-scan-btn" id="btn-scan-patient" onclick="startScanner('patient')">
+        <span> wristbands 📷</span> สแกน QR / บาร์โค้ด ป้ายข้อมือผู้ป่วย
+      </button>
+      <div class="patient-result" id="patient-result-box">
+        <div>
+          <div style="font-size:11px; color:var(--text-muted);">รหัสผู้ป่วย (De-identified Code ID)</div>
+          <div class="patient-code" id="display-patient-code">—</div>
+        </div>
+        <span style="font-size:12px; color:var(--green); font-weight:600;">✓ ยืนยันแล้ว</span>
+      </div>
+    </div>
+
+    <!-- ขั้นตอนที่ 4: Checklist 5 Rights -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-badge">ขั้นตอนที่ 4: ตรวจสอบหลัก 5 Rights</span>
+        <span class="step-status" id="rights-step-status">0 / 5 ข้อ</span>
+      </div>
+      <div class="checklist-group">
+        <label class="check-item" id="lbl-r1">
+          <input type="checkbox" id="chk-r1" onchange="onChecklistChange()">
+          <div>
+            <div class="check-label-main">1. Right Patient (ผู้ป่วยถูกคน)</div>
+            <div class="check-label-sub">ตรวจสอบรหัสผู้ป่วยตรงกับคำสั่งการรักษา</div>
+          </div>
+        </label>
+        <label class="check-item" id="lbl-r2">
+          <input type="checkbox" id="chk-r2" onchange="onChecklistChange()">
+          <div>
+            <div class="check-label-main">2. Right Drug (ยาถูกชนิด)</div>
+            <div class="check-label-sub">ตรวจสอบชื่อยาและสารละลายเจือจางตรงตามคำสั่ง</div>
+          </div>
+        </label>
+        <label class="check-item" id="lbl-r3">
+          <input type="checkbox" id="chk-r3" onchange="onChecklistChange()">
+          <div>
+            <div class="check-label-main">3. Right Dose (ขนาดยาถูกต้อง)</div>
+            <div class="check-label-sub">ตรวจสอบความเข้มข้นและอัตราการหยดยาถูกต้อง</div>
+          </div>
+        </label>
+        <label class="check-item" id="lbl-r4">
+          <input type="checkbox" id="chk-r4" onchange="onChecklistChange()">
+          <div>
+            <div class="check-label-main">4. Right Route (วิธีการให้ยาถูกต้อง)</div>
+            <div class="check-label-sub">ตรวจสอบตำแหน่งหลอดเลือด/ทางให้ยา (IV / Infusion pump)</div>
+          </div>
+        </label>
+        <label class="check-item" id="lbl-r5">
+          <input type="checkbox" id="chk-r5" onchange="onChecklistChange()">
+          <div>
+            <div class="check-label-main">5. Right Time (เวลาที่ให้ยาถูกต้อง)</div>
+            <div class="check-label-sub">ให้ยาตรงตามเวลาที่กำหนดและเฝ้าระวังตามเกณฑ์</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- ขั้นตอนที่ 5: สรุปและบันทึกข้อมูล -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-badge">ขั้นตอนที่ 5: บันทึกการบริหารยา</span>
+        <span class="step-status" id="log-status" style="color:var(--warning)">รอการยืนยัน</span>
+      </div>
+      <div class="log-info">
+        <div class="log-row"><span class="log-key">รหัสพยาบาล (Nurse ID)</span><span class="log-val" id="log-nurse">—</span></div>
+        <div class="log-row"><span class="log-key">รหัสผู้ป่วย (Code ID)</span><span class="log-val" id="log-patient">ยังไม่สแกน</span></div>
+        <div class="log-row"><span class="log-key">รายการยา HAD</span><span class="log-val" id="log-file">—</span></div>
+        <div class="log-row"><span class="log-key">เวลาบันทึก</span><span class="log-val" id="log-time">—</span></div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" disabled onclick="submitAdministration()">
+        🔒 กรุณาสแกนผู้ป่วยและติ๊กครบ 5 Rights
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const CONFIG = {
+  LIFF_ID: "2009915765-nxqp6Rdk",
+  SHEET_WEBAPP_URL: "https://script.google.com/macros/s/AKfycbwUj0VTqcmw7Xokjfrqab9dkviuMRifYhXG0hO898nc4cj68G-K1UDaM6Zt5Mm2NyXh9g/exec",
+};
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let profile = null;
+let html5QrCode = null;
+let currentScanMode = "drug"; // 'drug' หรือ 'patient'
+let currentAudioUrl = "";
+let currentFilename = "";
+let currentPatientCode = "";
+let isSavedCurrent = false;
+let sessionHistory = [];
+
+// ══════════════════════════════════════════
+//  INIT LIFF (De-identification: ใช้ userId เป็นรหัสพยาบาล)
+// ══════════════════════════════════════════
+async function initLiff() {
+  try {
+    await liff.init({ liffId: CONFIG.LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    profile = await liff.getProfile();
+
+    const shortNurseId = "NURSE-" + profile.userId.substring(profile.userId.length - 6).toUpperCase();
+    document.getElementById("user-avatar").src = profile.pictureUrl || "";
+    document.getElementById("user-name").textContent = "รหัสผู้ปฏิบัติงาน: " + shortNurseId;
+    document.getElementById("user-uid").textContent = "LINE ID: " + profile.userId.substring(0, 14) + "…";
+
+    loadHistory();
+    updateStats();
+    document.getElementById("loading-screen").style.display = "none";
+    document.getElementById("main-header").style.display = "flex";
+    showScreen("home-screen");
+  } catch (e) {
+    console.warn("LIFF init failed, using test profile:", e);
+    profile = { displayName: "Nurse Test", userId: "U_TEST_NURSE01", pictureUrl: "" };
+    document.getElementById("user-name").textContent = "รหัสผู้ปฏิบัติงาน: NURSE-TEST01";
+    document.getElementById("user-uid").textContent = "LINE ID: " + profile.userId;
+    document.getElementById("user-avatar").src = "https://via.placeholder.com/52/06C755/fff?text=RN";
+    loadHistory();
+    updateStats();
+    document.getElementById("loading-screen").style.display = "none";
+    document.getElementById("main-header").style.display = "flex";
+    showScreen("home-screen");
+  }
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+async function showHome() {
+  await stopScanner();
+  showScreen("home-screen");
+  updateStats();
+  renderHistory();
+}
+
+async function cancelScanner() {
+  await stopScanner();
+  if (currentScanMode === "patient" && currentAudioUrl) {
+    showScreen("administer-screen");
+  } else {
+    showScreen("home-screen");
+  }
+}
+
+// ══════════════════════════════════════════
+//  QR / BARCODE SCANNER (รองรับ 2 โหมด)
+// ══════════════════════════════════════════
+async function startScanner(mode) {
+  currentScanMode = mode;
+  await stopScanner();
+
+  if (mode === "drug") {
+    document.getElementById("scanner-title").textContent = "ขั้นตอนที่ 1: สแกน QR ฉลากยา HAD";
+    document.getElementById("scanner-subtitle").textContent = "เล็งกล้องไปที่ QR Code บนฉลากยาความเสี่ยงสูง";
+    document.getElementById("scanner-hint").textContent = "📱 ระบบจะเปิดไฟล์เสียงคำแนะนำการใช้ยาให้อัตโนมัติหลังสแกน";
+  } else {
+    document.getElementById("scanner-title").textContent = "ขั้นตอนที่ 3: สแกนป้ายข้อมือผู้ป่วย";
+    document.getElementById("scanner-subtitle").textContent = "สแกน QR Code หรือ Barcode รหัสผู้ป่วย (HN)";
+    document.getElementById("scanner-hint").textContent = "🔒 ระบบจะแปลง HN เป็นรหัส Code ID อัตโนมัติเพื่อปกปิดตัวตนตามหลักจริยธรรมวิจัย";
+  }
+
+  showScreen("scanner-screen");
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    onQRSuccess,
+    () => {}
+  ).catch(() => {
+    showToast("❌ ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง");
+    cancelScanner();
+  });
+}
+
+async function stopScanner() {
+  if (html5QrCode) {
+    try {
+      if (html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
+      html5QrCode.clear();
+    } catch (e) {
+      console.warn("Stop scanner warning:", e);
+    }
+    html5QrCode = null;
+  }
+}
+
+async function onQRSuccess(decodedText) {
+  await stopScanner();
+  const text = decodedText.trim();
+
+  if (currentScanMode === "drug") {
+    if (!isAudioUrl(text)) {
+      showToast("⚠️ QR นี้ไม่ใช่ลิงก์ไฟล์เสียงยา HAD");
+      showScreen("home-screen");
+      return;
+    }
+    openAdministrationScreen(text);
+  } else if (currentScanMode === "patient") {
+    if (!text) {
+      showToast("⚠️ ไม่พบรหัสผู้ป่วย กรุณาสแกนใหม่");
+      showScreen("administer-screen");
+      return;
+    }
+    handlePatientScan(text);
+  }
+}
+
+function isAudioUrl(url) {
+  try {
+    const u = new URL(url);
+    return /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(u.pathname) || url.startsWith("http");
+  } catch { return false; }
+}
+
+// ══════════════════════════════════════════
+//  DE-IDENTIFICATION (แปลง HN เป็น Code ID แบบคงที่)
+// ══════════════════════════════════════════
+function generatePatientCodeId(rawHn) {
+  let hash = 2166136261;
+  for (let i = 0; i < rawHn.length; i++) {
+    hash ^= rawHn.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const hex = (hash >>> 0).toString(16).toUpperCase().padStart(8, "0");
+  return "PT-" + hex;
+}
+
+// ══════════════════════════════════════════
+//  ADMINISTRATION WORKFLOW (ขั้นตอนที่ 2 - 5)
+// ══════════════════════════════════════════
+function openAdministrationScreen(url, isReplay = false) {
+  currentAudioUrl = url;
+  currentFilename = decodeURIComponent(url.split("/").pop().split("?")[0] || "ไฟล์เสียงยา HAD");
+  currentPatientCode = "";
+  isSavedCurrent = false;
+
+  const now = new Date();
+  const timeStr = now.toLocaleString("th-TH", { hour12: false });
+
+  // ตั้งค่าส่วนเสียงแนะนำ
+  document.getElementById("drug-title").textContent = currentFilename;
+  document.getElementById("drug-url").textContent = url;
+  const audio = document.getElementById("main-audio");
+  audio.src = url;
+  audio.load();
+  audio.play().catch(() => {}); // เล่นเสียงอัตโนมัติ (หากเบราว์เซอร์อนุญาต)
+
+  // รีเซ็ตส่วนผู้ป่วย
+  const btnPatient = document.getElementById("btn-scan-patient");
+  btnPatient.className = "patient-scan-btn";
+  btnPatient.innerHTML = "<span>📷</span> สแกน QR / บาร์โค้ด ป้ายข้อมือผู้ป่วย";
+  document.getElementById("patient-result-box").classList.remove("show");
+  document.getElementById("patient-step-status").textContent = "รอการสแกน";
+  document.getElementById("patient-step-status").className = "step-status";
+
+  // รีเซ็ต Checklist 5 Rights
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById(`chk-r${i}`).checked = false;
+    document.getElementById(`lbl-r${i}`).classList.remove("checked");
+  }
+  document.getElementById("rights-step-status").textContent = "0 / 5 ข้อ";
+  document.getElementById("rights-step-status").className = "step-status";
+
+  // ตั้งค่ากล่องสรุป
+  const shortNurseId = "NURSE-" + profile.userId.substring(profile.userId.length - 6).toUpperCase();
+  document.getElementById("log-nurse").textContent = shortNurseId;
+  document.getElementById("log-patient").textContent = "ยังไม่สแกน";
+  document.getElementById("log-file").textContent = currentFilename;
+  document.getElementById("log-time").textContent = timeStr;
+  document.getElementById("log-status").textContent = "รอการยืนยัน";
+  document.getElementById("log-status").style.color = "var(--warning)";
+
+  validateForm();
+  showScreen("administer-screen");
+  if (!isReplay) {
+    showToast("🔊 กำลังเล่นเสียงคำแนะนำการใช้ยา");
+  }
+}
+
+function handlePatientScan(rawHn) {
+  currentPatientCode = generatePatientCodeId(rawHn);
+
+  const btnPatient = document.getElementById("btn-scan-patient");
+  btnPatient.className = "patient-scan-btn scanned";
+  btnPatient.innerHTML = "<span>🔄</span> สแกนป้ายข้อมือผู้ป่วยอีกครั้ง";
+
+  document.getElementById("display-patient-code").textContent = currentPatientCode;
+  document.getElementById("patient-result-box").classList.add("show");
+  document.getElementById("patient-step-status").textContent = "✓ ยืนยันแล้ว";
+  document.getElementById("patient-step-status").className = "step-status done";
+  document.getElementById("log-patient").textContent = currentPatientCode;
+
+  showToast("✅ ยืนยันรหัสผู้ป่วย " + currentPatientCode + " สำเร็จ");
+  validateForm();
+  showScreen("administer-screen");
+}
+
+function onChecklistChange() {
+  let checkedCount = 0;
+  for (let i = 1; i <= 5; i++) {
+    const chk = document.getElementById(`chk-r${i}`);
+    const lbl = document.getElementById(`lbl-r${i}`);
+    if (chk.checked) {
+      checkedCount++;
+      lbl.classList.add("checked");
+    } else {
+      lbl.classList.remove("checked");
+    }
+  }
+
+  const statusEl = document.getElementById("rights-step-status");
+  statusEl.textContent = `${checkedCount} / 5 ข้อ`;
+  statusEl.className = checkedCount === 5 ? "step-status done" : "step-status";
+
+  validateForm();
+}
+
+function validateForm() {
+  const btn = document.getElementById("submit-btn");
+  if (isSavedCurrent) return;
+
+  let checkedCount = 0;
+  for (let i = 1; i <= 5; i++) {
+    if (document.getElementById(`chk-r${i}`).checked) checkedCount++;
+  }
+
+  const hasPatient = currentPatientCode !== "";
+  const allRightsChecked = checkedCount === 5;
+
+  if (hasPatient && allRightsChecked) {
+    btn.disabled = false;
+    btn.className = "submit-btn ready";
+    btn.textContent = "💾 ยืนยันและบันทึกการบริหารยา";
+  } else {
+    btn.disabled = true;
+    btn.className = "submit-btn";
+    if (!hasPatient && !allRightsChecked) {
+      btn.textContent = "🔒 กรุณาสแกนผู้ป่วยและติ๊กครบ 5 Rights";
+    } else if (!hasPatient) {
+      btn.textContent = "🔒 กรุณาสแกน QR ป้ายข้อมือผู้ป่วยก่อน";
+    } else {
+      btn.textContent = `🔒 กรุณาตรวจสอบ 5 Rights ให้ครบ (${checkedCount}/5)`;
+    }
+  }
+}
+
+// ══════════════════════════════════════════
+//  SUBMIT & GOOGLE SHEETS LOGGING
+// ══════════════════════════════════════════
+async function submitAdministration() {
+  const btn = document.getElementById("submit-btn");
+  if (btn.disabled || isSavedCurrent) return;
+
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังบันทึกข้อมูลเข้าระบบ...";
+  document.getElementById("log-status").textContent = "กำลังส่งข้อมูล…";
+
+  const now = new Date();
+  const timeStr = now.toLocaleString("th-TH", { hour12: false });
+  document.getElementById("log-time").textContent = timeStr;
+
+  const entry = {
+    userId: profile.userId,
+    displayName: "NURSE-" + profile.userId.substring(profile.userId.length - 6).toUpperCase(), // ส่งเป็น Code แทนชื่อจริง
+    patientCodeId: currentPatientCode,
+    audioUrl: currentAudioUrl,
+    filename: currentFilename,
+    fiveRights: "5/5 Verified",
+    timestamp: now.toISOString(),
+    timeStr: timeStr,
+  };
+
+  await logToSheet(entry);
+}
+
+async function logToSheet(entry) {
+  const btn = document.getElementById("submit-btn");
+  try {
+    const params = new URLSearchParams({
+      action: "log",
+      userId: entry.userId,
+      displayName: entry.displayName,
+      patientCodeId: entry.patientCodeId,
+      audioUrl: entry.audioUrl,
+      filename: entry.filename,
+      fiveRights: entry.fiveRights,
+      timestamp: entry.timestamp,
+      timeStr: entry.timeStr,
+    });
+
+    const res = await fetch(`${CONFIG.SHEET_WEBAPP_URL}?${params.toString()}`, {
+      method: "GET",
+    });
+
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch { json = {}; }
+
+    if (json.status === "ok") {
+      isSavedCurrent = true;
+      sessionHistory.unshift(entry);
+      saveHistory();
+
+      document.getElementById("log-status").textContent = "บันทึกสำเร็จ ✓";
+      document.getElementById("log-status").style.color = "var(--accent)";
+      btn.className = "submit-btn saved";
+      btn.textContent = "✓ บันทึกข้อมูลการบริหารยาเรียบร้อยแล้ว";
+      showToast("✅ บันทึกข้อมูลลงฐานข้อมูลสำเร็จ");
+    } else {
+      throw new Error(json.message || "unknown error");
+    }
+  } catch (err) {
+    console.error("logToSheet error:", err);
+    document.getElementById("log-status").textContent = "บันทึกล้มเหลว ✗";
+    document.getElementById("log-status").style.color = "var(--danger)";
+    btn.disabled = false;
+    btn.className = "submit-btn ready";
+    btn.textContent = "🔄 บันทึกไม่สำเร็จ — แตะเพื่อลองใหม่อีกครั้ง";
+    showToast("⚠️ บันทึกไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต");
+  }
+}
+
+// ══════════════════════════════════════════
+//  LOCAL HISTORY
+// ══════════════════════════════════════════
+function saveHistory() {
+  try { localStorage.setItem("had_history_v2", JSON.stringify(sessionHistory.slice(0, 50))); }
+  catch (e) { console.warn("localStorage not available"); }
+}
+
+function loadHistory() {
+  try { sessionHistory = JSON.parse(localStorage.getItem("had_history_v2") || "[]"); }
+  catch { sessionHistory = []; }
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById("history-list");
+  if (sessionHistory.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>ยังไม่มีประวัติการบริหารยา</div>`;
+    return;
+  }
+  el.innerHTML = sessionHistory.slice(0, 8).map(h => `
+    <div class="history-item" onclick="openAdministrationScreen('${h.audioUrl.replace(/'/g, "\\'")}', true)">
+      <div class="history-dot"></div>
+      <div>
+        <div class="history-name">${h.filename}</div>
+        <div class="history-time">ผู้ป่วย: ${h.patientCodeId || "-"} • ${h.timeStr}</div>
+      </div>
+      <div class="history-play">🔊</div>
+    </div>
+  `).join("");
+}
+
+function updateStats() {
+  const today = new Date().toDateString();
+  const todayCount = sessionHistory.filter(h => new Date(h.timestamp).toDateString() === today).length;
+  document.getElementById("stat-today").textContent = todayCount;
+  document.getElementById("stat-total").textContent = sessionHistory.length;
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+initLiff();
+</script>
+</body>
+</html>
